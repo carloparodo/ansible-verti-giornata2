@@ -1,0 +1,27 @@
+---
+- name: Lab 09 - shell per un controllo composto
+  hosts: app_servers
+  gather_facts: false
+  become: true
+  vars:
+    lab_package_effective: "{{ lab_package | default('httpd') }}"
+    lab_service_effective: "{{ lab_service | default('httpd') }}"
+
+  tasks:
+    - name: Esegue tre controlli read-only in una singola shell
+      ansible.builtin.shell: |
+        echo "=== PACKAGE ==="
+        rpm -q {{ lab_package_effective }}
+        echo "=== SERVICE ACTIVE ==="
+        systemctl is-active {{ lab_service_effective }}
+        echo "=== SERVICE ENABLED ==="
+        systemctl is-enabled {{ lab_service_effective }}
+      args:
+        executable: /bin/bash
+      register: multi_check
+      changed_when: false
+      failed_when: false
+
+    - name: Mostra il controllo composto
+      ansible.builtin.debug:
+        var: multi_check.stdout_lines

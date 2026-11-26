@@ -1,0 +1,39 @@
+---
+- name: Lab 04 - package, file, servizio e uri
+  hosts: app_servers
+  gather_facts: false
+  become: true
+  vars:
+    lab_package_effective: "{{ lab_package | default('httpd') }}"
+    lab_service_effective: "{{ lab_service | default('httpd') }}"
+
+  tasks:
+    - name: Assicura la presenza del package web
+      ansible.builtin.dnf:
+        name: "{{ lab_package_effective }}"
+        state: present
+
+    - name: Pubblica una pagina di laboratorio
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          Corso Ansible Verti - Giornata 2
+          Host: {{ inventory_hostname }}
+        mode: '0644'
+
+    - name: Assicura che il servizio web sia avviato e abilitato
+      ansible.builtin.systemd_service:
+        name: "{{ lab_service_effective }}"
+        state: started
+        enabled: true
+
+    - name: Verifica HTTP in locale
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        return_content: true
+        status_code: 200
+      register: http_check
+
+    - name: Mostra lo stato HTTP
+      ansible.builtin.debug:
+        msg: "HTTP {{ http_check.status }} - {{ http_check.content | trim }}"

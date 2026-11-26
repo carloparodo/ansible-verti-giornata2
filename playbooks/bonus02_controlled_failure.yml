@@ -1,0 +1,19 @@
+---
+- name: Bonus 02 - errore controllato e diagnosi
+  hosts: app_servers
+  gather_facts: false
+  become: false
+  vars:
+    lab_gate_effective: "{{ lab_gate | default('open') }}"
+
+  tasks:
+    - name: Verifica la condizione didattica
+      ansible.builtin.assert:
+        that:
+          - lab_gate_effective == 'open'
+        fail_msg: "Errore controllato: lab_gate deve valere open"
+        success_msg: "Condizione valida: il playbook puo proseguire"
+
+    - name: Conferma il superamento del controllo
+      ansible.builtin.debug:
+        msg: "La validazione ha avuto successo"

@@ -1,0 +1,30 @@
+---
+- name: Lab 06 - Facts e condizioni
+  hosts: app_servers
+  gather_facts: true
+  become: true
+  vars:
+    lab_root_effective: "{{ lab_root | default('/tmp/ansible_d2') }}"
+
+  tasks:
+    - name: Mostra tre Facts significativi
+      ansible.builtin.debug:
+        msg: >-
+          distro={{ ansible_facts['distribution'] }},
+          major={{ ansible_facts['distribution_major_version'] }},
+          arch={{ ansible_facts['architecture'] }}
+
+    - name: Crea marker solo su sistemi RedHat 8
+      ansible.builtin.copy:
+        dest: "{{ lab_root_effective }}/rhel8.marker"
+        content: "Target RHEL 8 verificato da Ansible
+"
+        mode: '0644'
+      when:
+        - ansible_facts['os_family'] == 'RedHat'
+        - ansible_facts['distribution_major_version'] | int == 8
+
+    - name: Esempio di task volutamente non pertinente
+      ansible.builtin.debug:
+        msg: "Questo messaggio apparirebbe solo su Debian"
+      when: ansible_facts['os_family'] == 'Debian'

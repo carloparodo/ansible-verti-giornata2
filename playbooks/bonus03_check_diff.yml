@@ -1,0 +1,22 @@
+---
+- name: Bonus 03 - file per Check mode e Show Changes
+  hosts: app_servers
+  gather_facts: false
+  become: true
+  vars:
+    lab_root_effective: "{{ lab_root | default('/tmp/ansible_d2') }}"
+    lab_message_effective: "{{ lab_message | default('Versione A') }}"
+
+  tasks:
+    - name: Assicura la directory radice
+      ansible.builtin.file:
+        path: "{{ lab_root_effective }}"
+        state: directory
+        mode: '0755'
+
+    - name: Gestisce un file ideale per il diff
+      ansible.builtin.copy:
+        dest: "{{ lab_root_effective }}/diff-demo.txt"
+        content: "{{ lab_message_effective }}
+"
+        mode: '0644'

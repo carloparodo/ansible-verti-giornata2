@@ -1,0 +1,92 @@
+---
+- name: Lab 10 - baseline integrata della Giornata 2
+  hosts: app_servers
+  gather_facts: true
+  become: true
+  vars:
+    lab_root_effective: "{{ lab_root | default('/tmp/ansible_d2') }}"
+    lab_group_effective: "{{ lab_group | default('ansible_lab') }}"
+    lab_user_effective: "{{ lab_user | default('ansible_lab') }}"
+    environment_effective: "{{ environment | default('test') }}"
+    application_port_effective: "{{ application_port | default(8080) }}"
+    lab_dirs_default:
+      - config
+      - data
+      - logs
+
+  tasks:
+    - name: Assicura il gruppo tecnico
+      ansible.builtin.group:
+        name: "{{ lab_group_effective }}"
+        state: present
+
+    - name: Assicura l'account tecnico
+      ansible.builtin.user:
+        name: "{{ lab_user_effective }}"
+        group: "{{ lab_group_effective }}"
+        shell: /sbin/nologin
+        create_home: false
+        state: present
+
+    - name: Assicura la directory radice
+      ansible.builtin.file:
+        path: "{{ lab_root_effective }}"
+        state: directory
+        owner: "{{ lab_user_effective }}"
+        group: "{{ lab_group_effective }}"
+        mode: '0755'
+
+    - name: Crea le sottodirectory della baseline
+      ansible.builtin.file:
+        path: "{{ lab_root_effective }}/{{ item }}"
+        state: directory
+        owner: "{{ lab_user_effective }}"
+        group: "{{ lab_group_effective }}"
+        mode: '0755'
+      loop: "{{ lab_dirs | default(lab_dirs_default) }}"
+
+    - name: Assicura il package httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Scrive la configurazione didattica
+      ansible.builtin.copy:
+        dest: "{{ lab_root_effective }}/config/application.conf"
+        content: |
+          environment={{ environment_effective }}
+          application_port={{ application_port_effective }}
+          host={{ inventory_hostname }}
+          os={{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+        owner: "{{ lab_user_effective }}"
+        group: "{{ lab_group_effective }}"
+        mode: '0644'
+
+    - name: Pubblica la pagina web didattica
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          Baseline Verti - {{ environment_effective }}
+          Host: {{ inventory_hostname }}
+        mode: '0644'
+
+    - name: Assicura che httpd sia avviato e abilitato
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: Verifica HTTP in locale
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        return_content: false
+        status_code: 200
+      register: http_check
+
+    - name: Mostra riepilogo della baseline
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} -
+          {{ environment_effective }}:{{ application_port_effective }} -
+          HTTP {{ http_check.status }}
+      when: ansible_facts['os_family'] == 'RedHat'

@@ -1,0 +1,28 @@
+---
+- name: Lab 07 - command, register e failed_when
+  hosts: app_servers
+  gather_facts: false
+  become: true
+  vars:
+    lab_package_effective: "{{ lab_package | default('curl') }}"
+
+  tasks:
+    - name: Legge l'uptime senza dichiarare una modifica
+      ansible.builtin.command:
+        cmd: uptime
+      register: uptime_result
+      changed_when: false
+
+    - name: Verifica il package scelto
+      ansible.builtin.command:
+        cmd: "rpm -q {{ lab_package_effective }}"
+      register: package_result
+      changed_when: false
+      failed_when: false
+
+    - name: Mostra uptime e risultato RPM
+      ansible.builtin.debug:
+        msg: >-
+          uptime={{ uptime_result.stdout }};
+          rpm_rc={{ package_result.rc }};
+          rpm_out={{ package_result.stdout }}
