@@ -1,0 +1,55 @@
+---
+- name: Lab 04 - package, file, servizio e uri
+  hosts: app_servers
+  gather_facts: false
+  become: true
+
+  vars:
+    # Su RHEL 8 i binding DNF di sistema sono associati al Platform Python.
+    ansible_python_interpreter: /usr/libexec/platform-python
+    lab_package_effective: "{{ lab_package | default('httpd') }}"
+    lab_service_effective: "{{ lab_service | default('httpd') }}"
+
+  pre_tasks:
+    - name: Verifica e installa il prerequisito Python per DNF
+      ansible.builtin.raw: |
+        if rpm -q python3-dnf >/dev/null 2>&1; then
+          echo "__PYTHON3_DNF_PRESENT__"
+        else
+          dnf -y install python3-dnf
+          echo "__PYTHON3_DNF_INSTALLED__"
+        fi
+      register: python3_dnf_bootstrap
+      changed_when: "'__PYTHON3_DNF_INSTALLED__' in python3_dnf_bootstrap.stdout"
+      failed_when: python3_dnf_bootstrap.rc != 0
+
+  tasks:
+    - name: Assicura la presenza del package web
+      ansible.builtin.dnf:
+        name: "{{ lab_package_effective }}"
+        state: present
+
+    - name: Pubblica una pagina di laboratorio
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          Corso Ansible Verti - Giornata 2
+          Host: {{ inventory_hostname }}
+        mode: '0644'
+
+    - name: Assicura che il servizio web sia avviato e abilitato
+      ansible.builtin.systemd_service:
+        name: "{{ lab_service_effective }}"
+        state: started
+        enabled: true
+
+    - name: Verifica HTTP in locale
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        return_content: true
+        status_code: 200
+      register: http_check
+
+    - name: Mostra lo stato HTTP
+      ansible.builtin.debug:
+        msg: "HTTP {{ http_check.status }} - {{ http_check.content | trim }}"
